@@ -1,8 +1,39 @@
+var hasProto = '__proto__' in {};
+var arrayKeys = Object.getOwnPropertyNames(arrayMethods);
+
 // 观察者构造函数
 function Observer(value){
 	this.value = value;
-	this.walk(value);
+	if (Array.isArray(value)) {
+	    var augment = hasProto
+	      ? protoAugment
+	      : copyAugment
+	    augment(value, arrayMethods, arrayKeys)
+	    this.observeArray(value)
+	  } else {
+	    this.walk(value)
+	  }
 };
+
+// 观察数组的每一项
+Observer.prototype.observeArray = function (items) {
+  for (var i = 0, l = items.length; i < l; i++) {
+    observe(items[i])
+  }
+}
+
+// 将目标对象/数组的原型指针__proto__指向src
+function protoAugment (target, src) {
+  target.__proto__ = src
+}
+
+// 将具有变异方法挂在需要追踪的对象上
+function copyAugment (target, src, keys) {
+  for (var i = 0, l = keys.length; i < l; i++) {
+    var key = keys[i]
+    def(target, key, src[key])
+  }
+}
 
 // 递归调用，为对象绑定 getter/setter
 Observer.prototpe.walk = function(obj){
@@ -62,3 +93,39 @@ function defineReative(obj, key, val){
 		}
 	})
 }
+
+var arrayProto = Array.prototype
+var arrayMethods = Object.create(arrayProto)
+
+function def(obj, key, val, enumerable) {
+  Object.defineProperty(obj, key, {
+    value: val,
+    enumerable: !!enumerable,
+    writable: true,
+    configurable: true
+  })
+}
+
+// 数组的变异方法
+;[
+  'push',
+  'pop',
+  'shift',
+  'unshift',
+  'splice',
+  'sort',
+  'reverse'
+]
+.forEach(function (method) {
+  // 缓存数组原始方法
+  var original = arrayProto[method]
+  def(arrayMethods, method, function mutator () {
+    var i = arguments.length
+    var args = new Array(i)
+    while (i--) {
+      args[i] = arguments[i]
+    }
+    console.log('数组变动')
+    return original.apply(this, args)
+  })
+})
