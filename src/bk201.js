@@ -1,7 +1,7 @@
 var hasProto = '__proto__' in {};
 var arrayKeys = Object.getOwnPropertyNames(arrayMethods);
-
-// 观察者构造函数
+var arrayProto = Array.prototype;
+var arrayMethods = Object.create(arrayProto);
 function Observer(value){
 	this.value = value;
 	if (Array.isArray(value)) {
@@ -15,19 +15,16 @@ function Observer(value){
 	  }
 };
 
-// 观察数组的每一项
 Observer.prototype.observeArray = function (items) {
   for (var i = 0, l = items.length; i < l; i++) {
     observe(items[i])
   }
 }
 
-// 将目标对象/数组的原型指针__proto__指向src
 function protoAugment (target, src) {
   target.__proto__ = src
 }
 
-// 将具有变异方法挂在需要追踪的对象上
 function copyAugment (target, src, keys) {
   for (var i = 0, l = keys.length; i < l; i++) {
     var key = keys[i]
@@ -35,7 +32,6 @@ function copyAugment (target, src, keys) {
   }
 }
 
-// 递归调用，为对象绑定 getter/setter
 Observer.prototpe.walk = function(obj){
 	var keys = Object.keys(obj),
 		_self = this;
@@ -44,28 +40,23 @@ Observer.prototpe.walk = function(obj){
 	});
 };
 
-// 将属性转换为 getter/setter
 Observer.prototype.convert = function(key, value){
 	defineReactive(this.value, key, val);
 };
 
-// 创建数据观察者实例
 function observe(value){
-	// 当值不存在或者不是对象类型时，不需要继续深入监听
 	if(!value || typeof value != 'object'){
 		return;
 	};
 	return new Observer(value);
 }
 
-// 定义对象属性的 getter/setter
 function defineReative(obj, key, val){
 	var property = Object.getOwnPropertyDescriptor(obj, key);
 	if(property && property.configurable === false){
 		return;
 	}
 
-	// 保存对象属性预先定义的 getter/setter
 	var getter = property && property.get;
 	var setter = property && property.set;
 
@@ -94,9 +85,6 @@ function defineReative(obj, key, val){
 	})
 }
 
-var arrayProto = Array.prototype
-var arrayMethods = Object.create(arrayProto)
-
 function def(obj, key, val, enumerable) {
   Object.defineProperty(obj, key, {
     value: val,
@@ -106,7 +94,6 @@ function def(obj, key, val, enumerable) {
   })
 }
 
-// 数组的变异方法
 ;[
   'push',
   'pop',
@@ -117,7 +104,6 @@ function def(obj, key, val, enumerable) {
   'reverse'
 ]
 .forEach(function (method) {
-  // 缓存数组原始方法
   var original = arrayProto[method]
   def(arrayMethods, method, function mutator () {
     var i = arguments.length
@@ -129,3 +115,121 @@ function def(obj, key, val, enumerable) {
     return original.apply(this, args)
   })
 })
+
+/**
+ * 观察者对象
+ */
+function Watcher(vm, expOrFn, cb) {
+    this.vm = vm
+    this.cb = cb
+    this.depIds = {}
+    if (typeof expOrFn === 'function') {
+        this.getter = expOrFn
+    } else {
+        this.getter = this.parseExpression(expOrFn)
+    }
+    this.value = this.get()
+}
+
+/**
+ * 收集依赖
+ */
+Watcher.prototype.get = function () {
+    // 当前订阅者(Watcher)读取被订阅数据的最新更新后的值时，通知订阅者管理员收集当前订阅者
+    Dep.target = this
+    // 触发getter，将自身添加到dep中
+    const value = this.getter.call(this.vm, this.vm)
+    // 依赖收集完成，置空，用于下一个Watcher使用
+    Dep.target = null
+    return value
+}
+
+Watcher.prototype.addDep = function (dep) {
+    if (!this.depIds.hasOwnProperty(dep.id)) {
+        dep.addSub(this)
+        this.depIds[dep.id] = dep
+    }
+}
+
+/**
+ * 依赖变动更新
+ *
+ * @param {Boolean} shallow
+ */
+Watcher.prototype.update = function () {
+    this.run()
+}
+
+Watcher.prototype.run = function () {
+    var value = this.get()
+    if (value !== this.value) {
+        var oldValue = this.value
+        this.value = value
+        // 将newVal, oldVal挂载到MVVM实例上
+        this.cb.call(this.vm, value, oldValue)
+    }
+}
+
+Watcher.prototype.parseExpression = function (exp) {
+    if (/[^\w.$]/.test(exp)) {
+        return
+    }
+    var exps = exp.split('.')
+
+    return function(obj) {
+        for (var i = 0, len = exps.length; i < len; i++) {
+            if (!obj) return
+            obj = obj[exps[i]]
+        }
+        return obj
+    }
+}
+
+let uid = 0
+
+function Dep() {
+    this.id = uid++
+    this.subs = []
+}
+
+Dep.target = null
+
+/**
+ * 添加一个订阅者
+ *
+ * @param {Directive} sub
+ */
+Dep.prototype.addSub = function (sub) {
+    this.subs.push(sub)
+}
+
+/**
+ * 移除一个订阅者
+ *
+ * @param {Directive} sub
+ */
+Dep.prototype.removeSub = function (sub) {
+    let index = this.subs.indexOf(sub);
+    if (index !== -1) {
+        this.subs.splice(index, 1);
+    }
+}
+
+/**
+ * 将自身作为依赖添加到目标watcher
+ */
+Dep.prototype.depend = function () {
+    Dep.target.addDep(this)
+}
+
+/**
+ * 通知数据变更
+ */
+Dep.prototype.notify = function () {
+    var subs = toArray(this.subs)
+    // stablize the subscriber list first
+    for (var i = 0, l = subs.length; i < l; i++) {
+        // 执行订阅者的update更新函数
+        subs[i].update()
+    }
+}
