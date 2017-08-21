@@ -1,38 +1,38 @@
 var hasProto = '__proto__' in {};
-var arrayKeys = Object.getOwnPropertyNames(arrayMethods);
 var arrayProto = Array.prototype;
 var arrayMethods = Object.create(arrayProto);
+var arrayKeys = Object.getOwnPropertyNames(arrayMethods);
 function Observer(value){
 	this.value = value;
 	if (Array.isArray(value)) {
 	    var augment = hasProto
 	      ? protoAugment
 	      : copyAugment
-	    augment(value, arrayMethods, arrayKeys)
-	    this.observeArray(value)
+	    augment(value, arrayMethods, arrayKeys);
+	    this.observeArray(value);
 	  } else {
-	    this.walk(value)
+	    this.walk(value);
 	  }
 };
 
 Observer.prototype.observeArray = function (items) {
   for (var i = 0, l = items.length; i < l; i++) {
-    observe(items[i])
+    observe(items[i]);
   }
 }
 
 function protoAugment (target, src) {
-  target.__proto__ = src
+  target.__proto__ = src;
 }
 
 function copyAugment (target, src, keys) {
   for (var i = 0, l = keys.length; i < l; i++) {
-    var key = keys[i]
-    def(target, key, src[key])
+    var key = keys[i];
+    def(target, key, src[key]);
   }
 }
 
-Observer.prototpe.walk = function(obj){
+Observer.prototype.walk = function(obj){
 	var keys = Object.keys(obj),
 		_self = this;
 	keys.forEach(function(v, i){
@@ -40,7 +40,7 @@ Observer.prototpe.walk = function(obj){
 	});
 };
 
-Observer.prototype.convert = function(key, value){
+Observer.prototype.convert = function(key, val){
 	defineReactive(this.value, key, val);
 };
 
@@ -51,7 +51,7 @@ function observe(value){
 	return new Observer(value);
 }
 
-function defineReative(obj, key, val){
+function defineReactive(obj, key, val){
 	var property = Object.getOwnPropertyDescriptor(obj, key);
 	if(property && property.configurable === false){
 		return;
@@ -70,8 +70,8 @@ function defineReative(obj, key, val){
 			return value;
 		},
 		set: function reactiveSetter(newVal){
-			var value = getter ? getter ? getter.call(obj) : val;
-			if(new === value){
+			var value = getter ? getter.call(obj) : val;
+			if(newVal === value){
 				return ;
 			}
 			if(setter){
@@ -86,89 +86,65 @@ function defineReative(obj, key, val){
 }
 
 function def(obj, key, val, enumerable) {
-  Object.defineProperty(obj, key, {
-    value: val,
-    enumerable: !!enumerable,
-    writable: true,
-    configurable: true
-  })
+	Object.defineProperty(obj, key, {
+		value: val,
+		enumerable: !!enumerable,
+		writable: true,
+		configurable: true
+	})
 }
 
-;[
-  'push',
-  'pop',
-  'shift',
-  'unshift',
-  'splice',
-  'sort',
-  'reverse'
-]
-.forEach(function (method) {
-  var original = arrayProto[method]
-  def(arrayMethods, method, function mutator () {
-    var i = arguments.length
-    var args = new Array(i)
-    while (i--) {
-      args[i] = arguments[i]
-    }
-    console.log('数组变动')
-    return original.apply(this, args)
-  })
-})
+;['push','pop','shift','unshift','splice','sort','reverse'].forEach(function (method) {
+	var original = arrayProto[method];
+	def(arrayMethods, method, function mutator () {
+		var i = arguments.length;
+		var args = new Array(i);
+		while (i--) {
+		  args[i] = arguments[i];
+		}
+		console.log('数组变动');
+		return original.apply(this, args);
+	})
+});
 
-/**
- * 观察者对象
- */
 function Watcher(vm, expOrFn, cb) {
-    this.vm = vm
-    this.cb = cb
-    this.depIds = {}
+    this.vm = vm;
+    this.cb = cb;
+    this.depIds = {};
     if (typeof expOrFn === 'function') {
-        this.getter = expOrFn
+        this.getter = expOrFn;
     } else {
-        this.getter = this.parseExpression(expOrFn)
+        this.getter = this.parseExpression(expOrFn);
     }
-    this.value = this.get()
-}
+    this.value = this.get();
+};
 
-/**
- * 收集依赖
- */
 Watcher.prototype.get = function () {
-    // 当前订阅者(Watcher)读取被订阅数据的最新更新后的值时，通知订阅者管理员收集当前订阅者
-    Dep.target = this
-    // 触发getter，将自身添加到dep中
-    const value = this.getter.call(this.vm, this.vm)
-    // 依赖收集完成，置空，用于下一个Watcher使用
-    Dep.target = null
-    return value
-}
+    Dep.target = this;
+    var value = this.getter.call(this.vm, this.vm);
+    Dep.target = null;
+    return value;
+};
 
 Watcher.prototype.addDep = function (dep) {
     if (!this.depIds.hasOwnProperty(dep.id)) {
-        dep.addSub(this)
-        this.depIds[dep.id] = dep
-    }
-}
+        dep.addSub(this);
+        this.depIds[dep.id] = dep;
+    };
+};
 
-/**
- * 依赖变动更新
- *
- * @param {Boolean} shallow
- */
 Watcher.prototype.update = function () {
     this.run()
 }
 
 Watcher.prototype.run = function () {
-    var value = this.get()
+    var value = this.get();
     if (value !== this.value) {
-        var oldValue = this.value
-        this.value = value
-        // 将newVal, oldVal挂载到MVVM实例上
-        this.cb.call(this.vm, value, oldValue)
-    }
-}
+        var oldValue = this.value;
+        this.value = value;
+        this.cb.call(this.vm, value, oldValue);
+    };
+};
 
 Watcher.prototype.parseExpression = function (exp) {
     if (/[^\w.$]/.test(exp)) {
@@ -185,51 +161,33 @@ Watcher.prototype.parseExpression = function (exp) {
     }
 }
 
-let uid = 0
+var uid = 0;
 
 function Dep() {
-    this.id = uid++
-    this.subs = []
+    this.id = uid++;
+    this.subs = [];
 }
 
-Dep.target = null
+Dep.target = null;
 
-/**
- * 添加一个订阅者
- *
- * @param {Directive} sub
- */
 Dep.prototype.addSub = function (sub) {
-    this.subs.push(sub)
+    this.subs.push(sub);
 }
 
-/**
- * 移除一个订阅者
- *
- * @param {Directive} sub
- */
 Dep.prototype.removeSub = function (sub) {
-    let index = this.subs.indexOf(sub);
+    var index = this.subs.indexOf(sub);
     if (index !== -1) {
         this.subs.splice(index, 1);
     }
 }
 
-/**
- * 将自身作为依赖添加到目标watcher
- */
 Dep.prototype.depend = function () {
-    Dep.target.addDep(this)
+    Dep.target.addDep(this);
 }
 
-/**
- * 通知数据变更
- */
 Dep.prototype.notify = function () {
-    var subs = toArray(this.subs)
-    // stablize the subscriber list first
+    var subs = toArray(this.subs);
     for (var i = 0, l = subs.length; i < l; i++) {
-        // 执行订阅者的update更新函数
-        subs[i].update()
+        subs[i].update();
     }
 }
