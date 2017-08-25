@@ -4,7 +4,27 @@
 	<script type="text/javascript" src="./src/bk201.js"></script>
 </head>
 <body>
-	<script type="text/javascript">
-		
+	<div id="app">
+	    <h3>{{user.name}}</h3>
+	    <input type="text" v-model="skills">
+	    <p>{{modelValue}}</p>
+	</div>
+	<script>
+	    var vm = new BK({
+	        el: '#app',
+	        data: {
+	            modelValue: '',
+	            user: {
+	                name: 'zhaomenghuan',
+	                age: '24'
+	            },
+	            address: {
+	                city: 'beijing'
+	            },
+	            skills: ['JavaScript', 'Node.js', 'html5']
+	        }
+	    })
+
+	    vm.$watch('modelValue', val => console.log(`watch modelValue ：${val}`))
 	</script>
 </body>
